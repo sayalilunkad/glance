@@ -29,5 +29,8 @@
     "get_task": "",
     "get_tasks": "",
     "add_task": "",
-    "modify_task": ""
+    "modify_task": "",
+
+    "deactivate": "",
+    "reactivate": ""
 }
