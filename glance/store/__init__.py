@@ -21,6 +21,8 @@ import sys
 import time
 
 from oslo.config import cfg
+import six
+import six.moves.urllib.parse as urlparse
 
 from glance.common import crypt
 from glance.common import exception
@@ -69,6 +71,8 @@ store_opts = [
 
 CONF = cfg.CONF
 CONF.register_opts(store_opts)
+
+RESTRICTED_URI_SCHEMAS = frozenset(['file', 'filesystem', 'swift+config'])
 
 
 class BackendException(Exception):
@@ -372,6 +376,26 @@ def set_acls(context, location_uri, public=False, read_tenants=[],
                        write_tenants=write_tenants)
     except NotImplementedError:
         LOG.debug(_("Skipping store.set_acls... not implemented."))
+
+
+def validate_external_location(uri):
+    """
+    Validate if URI of external location are supported.
+
+    Only over non-local store types are OK, i.e. S3, Swift,
+    HTTP. Note the absence of 'file://' for security reasons,
+    see LP bug #942118, 1400966, 'swift+config://' is also
+    absent for security reasons, see LP bug #1334196.
+
+    :param uri: The URI of external image location.
+    :return: Whether given URI of external image location are OK.
+    """
+
+    # TODO(gm): Use a whitelist of allowed schemes
+    scheme = urlparse.urlparse(uri).scheme
+    valid_scheme = any(scheme.lower().startswith(s)
+                       for s in ['s3', 'swift', 'http', 'rbd', 'sheepdog', 'cinder'])
+    return (valid_scheme and scheme not in RESTRICTED_URI_SCHEMAS)
 
 
 class ImageRepoProxy(glance.domain.proxy.Repo):

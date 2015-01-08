@@ -24,6 +24,7 @@ import StringIO
 
 from oslo.config import cfg
 import routes
+import six
 import webob
 
 import glance.api
@@ -824,7 +825,27 @@ class TestGlanceAPI(base.IsolatedUnitTest):
         req.headers['Content-Type'] = 'application/octet-stream'
         req.body = "chunk00000remainder"
         res = req.get_response(self.api)
-        self.assertEquals(res.status_int, 400)
+        self.assertEqual(res.status_int, 400)
+
+    def test_add_copy_from_with_restricted_sources(self):
+        """Tests creates an image from copy-from with restricted sources"""
+        header_template = {'x-image-meta-store': 'file',
+                           'x-image-meta-disk-format': 'vhd',
+                           'x-image-meta-container-format': 'ovf',
+                           'x-image-meta-name': 'fake image #F'}
+
+        schemas = ["file:///etc/passwd",
+                   "swift+config:///xxx",
+                   "filesystem:///etc/passwd"]
+
+        for schema in schemas:
+            req = webob.Request.blank("/images")
+            req.method = 'POST'
+            for k, v in six.iteritems(header_template):
+                req.headers[k] = v
+            req.headers['x-glance-api-copy-from'] = schema
+            res = req.get_response(self.api)
+            self.assertEqual(400, res.status_int)
 
     def test_post_image_content_missing_disk_format(self):
         """Tests creation of an image with missing disk format"""

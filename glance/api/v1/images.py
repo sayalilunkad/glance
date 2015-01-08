@@ -50,7 +50,8 @@ import glance.registry.client.v1.api as registry
 from glance.store import (get_from_backend,
                           get_size_from_backend,
                           get_store_from_location,
-                          get_store_from_scheme)
+                          get_store_from_scheme,
+                          validate_external_location)
 
 LOG = logging.getLogger(__name__)
 SUPPORTED_PARAMS = glance.api.v1.SUPPORTED_PARAMS
@@ -381,14 +382,14 @@ class Controller(controller.BaseController):
         If the above constraint is violated, we reject with 400 "Bad Request".
         """
         if source:
-            for scheme in ['s3', 'swift', 'http', 'rbd', 'sheepdog', 'cinder']:
-                if source.lower().startswith(scheme):
-                    return source
-            msg = _("External sourcing not supported for store %s") % source
-            LOG.debug(msg)
-            raise HTTPBadRequest(explanation=msg,
-                                 request=req,
-                                 content_type="text/plain")
+            if validate_external_location(source):
+                return source
+            else:
+                msg = _("External sourcing not supported for store %s") % source
+                LOG.debug(msg)
+                raise HTTPBadRequest(explanation=msg,
+                                     request=req,
+                                     content_type="text/plain")
 
     @staticmethod
     def _copy_from(req):
